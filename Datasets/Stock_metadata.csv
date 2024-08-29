@@ -1,0 +1,99 @@
+Index,Symbol,Company Name,Sector
+1,AAPL,Apple Inc.,Technology
+2,ABBV,AbbVie Inc.,Healthcare
+3,ACN,Accenture plc,Technology
+4,ADBE,Adobe Inc.,Technology
+5,AEP,"American Electric Power Company, Inc.",Utilities
+6,AMD,"Advanced Micro Devices, Inc.",Technology
+7,AMT,American Tower Corporation,Real Estate
+8,AMZN,"Amazon.com, Inc.",Consumer Cyclical
+9,APD,"Air Products and Chemicals, Inc.",Basic Materials
+10,AVGO,Broadcom Inc.,Technology
+11,AZN,AstraZeneca PLC,Healthcare
+12,BA,The Boeing Company,Industrials
+13,BABA,Alibaba Group Holding Limited,Consumer Cyclical
+14,BAC,Bank of America Corporation,Financial Services
+15,BAC-PE,Bank of America Corporation,Financial Services
+16,BHP,BHP Group Limited,Basic Materials
+17,BKNG,Booking Holdings Inc.,Consumer Cyclical
+18,BML-PG,Bank of America Corporation,Financial Services
+19,BP,BP p.l.c.,Energy
+20,BRK-A,Berkshire Hathaway Inc.,Financial Services
+21,BRK-B,Berkshire Hathaway Inc.,Financial Services
+22,BUD,Anheuser-Busch InBev SA/NV,Consumer Defensive
+23,CAT,Caterpillar Inc.,Industrials
+24,CMCSA,Comcast Corporation,Communication Services
+25,COP,ConocoPhillips,Energy
+26,COST,Costco Wholesale Corporation,Consumer Defensive
+27,CRH,CRH plc,Basic Materials
+28,CRM,"Salesforce, Inc.",Technology
+29,CSCO,"Cisco Systems, Inc.",Technology
+30,CTA-PB,"EIDP, Inc.",Basic Materials
+31,CVX,Chevron Corporation,Energy
+32,DE,Deere & Company,Industrials
+33,DIS,The Walt Disney Company,Communication Services
+34,DLR,"Digital Realty Trust, Inc.",Real Estate
+35,DTEGY,Deutsche Telekom AG,Communication Services
+36,ECL,Ecolab Inc.,Basic Materials
+37,ENB,Enbridge Inc.,Energy
+38,EQIX,"Equinix, Inc.",Real Estate
+39,ETN,Eaton Corporation plc,Industrials
+40,FCX,Freeport-McMoRan Inc.,Basic Materials
+41,FMX,"Fomento Económico Mexicano, S.A.B. de C.V.",Consumer Defensive
+42,GE,GE Aerospace,Industrials
+43,GOOG,Alphabet Inc.,Communication Services
+44,GOOGL,Alphabet Inc.,Communication Services
+45,HD,"The Home Depot, Inc.",Consumer Cyclical
+46,HON,Honeywell International Inc.,Industrials
+47,JNJ,Johnson & Johnson,Healthcare
+48,KO,The Coca-Cola Company,Consumer Defensive
+49,LIN,Linde plc,Basic Materials
+50,LLY,Eli Lilly and Company,Healthcare
+51,LMT,Lockheed Martin Corporation,Industrials
+52,LOW,"Lowe's Companies, Inc.",Consumer Cyclical
+53,MA,Mastercard Incorporated,Financial Services
+54,MCD,McDonald's Corporation,Consumer Cyclical
+55,MDLZ,"Mondelez International, Inc.",Consumer Defensive
+56,META,"Meta Platforms, Inc.",Communication Services
+57,MRK,"Merck & Co., Inc.",Healthcare
+58,MSFT,Microsoft Corporation,Technology
+59,NEE,"NextEra Energy, Inc.",Utilities
+60,NFLX,"Netflix, Inc.",Communication Services
+61,NGG,National Grid plc,Utilities
+62,NVDA,NVIDIA Corporation,Technology
+63,NVO,Novo Nordisk A/S,Healthcare
+64,O,Realty Income Corporation,Real Estate
+65,ORCL,Oracle Corporation,Technology
+66,PBR,Petróleo Brasileiro S.A. - Petrobras,Energy
+67,PEP,"PepsiCo, Inc.",Consumer Defensive
+68,PG,The Procter & Gamble Company,Consumer Defensive
+69,PLD,"Prologis, Inc.",Real Estate
+70,PLDGP,"Prologis, Inc.",Real Estate
+71,PM,Philip Morris International Inc.,Consumer Defensive
+72,PSA,Public Storage,Real Estate
+73,RHHBF,Roche Holding AG,Healthcare
+74,RHHBY,Roche Holding AG,Healthcare
+75,RHHVF,Roche Holding AG,Healthcare
+76,RIO,Rio Tinto Group,Basic Materials
+77,RTX,RTX Corporation,Industrials
+78,SCCO,Southern Copper Corporation,Basic Materials
+79,SHEL,Shell plc,Energy
+80,SHW,The Sherwin-Williams Company,Basic Materials
+81,SO,The Southern Company,Utilities
+82,SPG,"Simon Property Group, Inc.",Real Estate
+83,SPG-PJ,"Simon Property Group, Inc.",Real Estate
+84,SRE,Sempra,Utilities
+85,T,AT&T Inc.,Communication Services
+86,TJX,"The TJX Companies, Inc.",Consumer Cyclical
+87,TM,Toyota Motor Corporation,Consumer Cyclical
+88,TMUS,"T-Mobile US, Inc.",Communication Services
+89,TSLA,"Tesla, Inc.",Consumer Cyclical
+90,UL,Unilever PLC,Consumer Defensive
+91,UNH,UnitedHealth Group Incorporated,Healthcare
+92,UNP,Union Pacific Corporation,Industrials
+93,UPS,"United Parcel Service, Inc.",Industrials
+94,V,Visa Inc.,Financial Services
+95,VZ,Verizon Communications Inc.,Communication Services
+96,WELL,Welltower Inc.,Real Estate
+97,WMT,Walmart Inc.,Consumer Defensive
+98,XOM,Exxon Mobil Corporation,Energy
