@@ -406,6 +406,7 @@ class StockAnalysis:
         null_model_max_eigenvalue = np.quantile(self.null_model_eigenvalues, null_model_thres)
         # Calculate the number of eigenvalues to keep based on the null model
         p = np.sum(self.eigenvalues > null_model_max_eigenvalue)
+        self.p = p
         print(f"Number of significant eigenvalues: {p}")
         # generate bi-plots for the top p eigenvectors
         print(f"Generating bi-plots for the top {p} eigenvectors")
@@ -427,6 +428,7 @@ class StockAnalysis:
         # plot the bi-plots for the filtered eigenvectors
         print("Generating bi-plots for the filtered eigenvectors")
         self.plot_biplots(filtered_eigenvectors)
+        self.fitered_eigenvectors = filtered_eigenvectors  
         
         # identify the groups based on the filtered eigenvectors
         print("Identifying groups based on the filtered eigenvectors")
@@ -437,6 +439,23 @@ class StockAnalysis:
         self.filtered_correlation_matrix = reordered_corr
         self.new_order = new_order
 
+    def reconstruct_correlation_matrix(self):
+        """
+        Reconstruct the correlation matrix using the filtered eigenvectors.
+        and plot the reconstructed correlation matrix as more eigenvalues are included.
+        """
+        j = 0
+        for i in range(1, self.p + 1):
+            # select the top i eigenvectors except the first one
+            pcs = self.fitered_eigenvectors[:, j:i]
+            # reconstruct the correlation matrix sigma = sum of eigenvalues * eigenvectors * eigenvectors.T
+            reconstructed_corr = pcs @ np.diag(self.eigenvalues[j:i]) @ pcs.T
+            # reorder the reconstructed correlation matrix
+            reordered_corr = reconstructed_corr[self.new_order][:, self.new_order]
+            # plot the reconstructed correlation matrix
+            
+            print(f"Reconstructed correlation matrix with {i} eigenvalues")
+            self.plot_correlation_matrix(reordered_corr)
 
 
 
@@ -525,3 +544,4 @@ class StockAnalysis:
 
         # filter the correlation matrix and reorder and plot all the results
         self.filter_correlation_matrix()
+        self.reconstruct_correlation_matrix()
