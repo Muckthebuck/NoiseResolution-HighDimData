@@ -80,7 +80,7 @@ class StockAnalysis:
             np.ndarray: The linear shrinkage estimate of the covariance matrix.
         """
         if data is None:
-            data = self.returns_data
+            data = self.returns_data.T
         sample_cov = np.cov(data)
         target_cov = np.diag(np.diag(sample_cov))
         return (1 - alpha) * sample_cov + alpha * target_cov
@@ -112,7 +112,7 @@ class StockAnalysis:
         Generate and display a scree plot of eigenvalues.
         """
         if self.eigenvalues is None:
-            self.eigenvalues, self.eigenvectors = np.linalg.eig(self.cov_matrix)
+            self.eigenvalues, self.eigenvectors = np.linalg.eigh(self.cov_matrix)
         plt.figure(figsize=(8, 5))
         plt.plot(range(1, len(self.eigenvalues) + 1), self.eigenvalues, marker='o')
         plt.title('Scree Plot')
@@ -126,7 +126,7 @@ class StockAnalysis:
         Generate and display a histogram of eigenvalues.
         """
         if self.eigenvalues is None:
-            self.eigenvalues, self.eigenvectors = np.linalg.eig(self.cov_matrix)
+            self.eigenvalues, self.eigenvectors = np.linalg.eigh(self.cov_matrix)
         plt.figure(figsize=(8, 5))
         plt.hist(self.eigenvalues, density=True, bins=30, edgecolor='black', alpha=0.7)
         plt.title('Histogram of Eigenvalues')
@@ -171,7 +171,7 @@ class StockAnalysis:
         n, t = self.returns_data.shape
         gaussian_matrix = np.random.randn(n, t)
         gaussian_matrix = (gaussian_matrix - np.mean(gaussian_matrix)) / np.std(gaussian_matrix)
-        gaussian_cov = self.cov_method(gaussian_matrix)
+        gaussian_cov = self.corr_method(gaussian_matrix)
         gaussian_eigenvalues, _ = np.linalg.eig(gaussian_cov)
     
         plt.figure(figsize=(10, 5))
@@ -186,7 +186,7 @@ class StockAnalysis:
 
     def analyze_top_eigenvectors(self, k=15) -> None:
         """
-        Analyze and visualize the top eigenvectors of the covariance matrix.
+        Analyze and visualize the top eigenvectors of the corr matrix.
         """
         if self.eigenvalues is None:
             self.calculate_eigen_decomposition()
@@ -194,8 +194,8 @@ class StockAnalysis:
         top_eigenvectors = self.eigenvectors[:, top_indices]
         top_eigenvalues = self.eigenvalues[top_indices]
 
-        fig, axes = plt.subplots(k, 3, figsize=(20, 25))
-        fig.suptitle('Analysis of Top 5 Eigenvectors', fontsize=16)
+        fig, axes = plt.subplots(k, 3, figsize=(20, 30))
+        fig.suptitle(f'Analysis of top {k} eigenvectors', fontsize=16)
 
         for i in range(k):
             # Histogram
@@ -221,17 +221,19 @@ class StockAnalysis:
                         verticalalignment='top', horizontalalignment='right',
                         transform=axes[i, 2].transAxes, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
 
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Reserve space for suptitle
 
-        plt.tight_layout()
+ 
         plt.show()
 
     def analyze_eigenvectors(self, top_eigenvectors, top_eigenvalues) -> None:
         """
-        Analyze and visualize the eigenvectors of the covariance matrix.
+        Analyze and visualize the eigenvectors of the corr matrix.
         """
         k = top_eigenvectors.shape[1]
 
         fig, axes = plt.subplots(k, 3, figsize=(20, 30))
+        fig.suptitle('Analysis of significant eigenvectors after filtering', fontsize=16)
         for i in range(k):
             # Histogram
             axes[i, 0].hist(top_eigenvectors[:, i], density=True, bins=30, alpha=0.7)
@@ -256,20 +258,19 @@ class StockAnalysis:
                         verticalalignment='top', horizontalalignment='right',
                         transform=axes[i, 2].transAxes, fontsize=10, bbox=dict(facecolor='white', alpha=0.5))
 
-        plt.suptitle('Analysis of Top Eigenvectors', fontsize=16)
-        plt.tight_layout()
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Reserve space for suptitle
         plt.show()
 
-    def covariance_matrix_reconstruction(self) -> np.ndarray:
+    def covariance_matrix_reconstruction(self, k=5) -> np.ndarray:
         """
         Reconstruct the covariance matrix using top eigenvalues and eigenvectors.
 
         Returns:
-            np.ndarray: The reconstructed covariance matrix.
+            np.ndarray: The reconstructed corr matrix.
         """
         if self.eigenvalues is None:
             self.calculate_eigen_decomposition()
-        top_indices = np.argsort(self.eigenvalues)[-5:][::-1]
+        top_indices = np.argsort(self.eigenvalues)[-k:][::-1]
         top_eigenvalues = self.eigenvalues[top_indices]
         top_eigenvectors = self.eigenvectors[:, top_indices]
 
@@ -278,9 +279,9 @@ class StockAnalysis:
 
     def calculate_eigen_decomposition(self) -> None:
         """
-        Calculate the eigenvalues and eigenvectors of the covariance matrix.
+        Calculate the eigenvalues and eigenvectors of the corr matrix.
         """
-        self.eigenvalues, self.eigenvectors = np.linalg.eig(self.cov_matrix)
+        self.eigenvalues, self.eigenvectors = np.linalg.eigh(self.corr_matrix)
         idx = np.argsort(self.eigenvalues)[::-1]
         self.eigenvalues = self.eigenvalues[idx]
         self.eigenvectors = self.eigenvectors[:, idx]
@@ -294,7 +295,7 @@ class StockAnalysis:
             n_clusters (int): Number of clusters to form, default is 5.
         """
         clustering = SpectralClustering(n_clusters=n_clusters, affinity='precomputed', random_state=42)
-        similarity_matrix = np.abs(np.corrcoef(self.returns_data))
+        similarity_matrix = np.abs(self.corr_matrix)
         labels = clustering.fit_predict(similarity_matrix)
 
         results = pd.DataFrame({
@@ -304,10 +305,15 @@ class StockAnalysis:
             'Cluster': labels
         })
 
+        # Print stocks in each cluster
         for cluster in range(n_clusters):
             print(f"\nCluster {cluster}:")
             cluster_stocks = results[results['Cluster'] == cluster]
             print(cluster_stocks[['Symbol', 'Company Name', 'Sector']])
+
+        # Reorder the correlation matrix based on clusters
+        self.new_order = results.sort_values(by='Cluster').index
+ 
 
         plt.figure(figsize=(12, 8))
         for cluster in range(n_clusters):
@@ -359,6 +365,8 @@ class StockAnalysis:
 
         """
         n, t = self.returns_data.shape
+        c = n / t  # ratio for Marchenko-Pastur law (c = n / t)
+
         # Create an array to store all eigenvalues
         all_eigenvalues = np.zeros((num_shuffles, n))
         
@@ -366,22 +374,49 @@ class StockAnalysis:
         for i in range(num_shuffles):
             shuffled_data = np.apply_along_axis(np.random.permutation, 1, self.returns_data)
             # Compute surrogate correlation matrices
-            surrogate_corr_matrices = np.corrcoef(shuffled_data)
+            surrogate_corr_matrices = self.corr_method(shuffled_data)
       
             all_eigenvalues[i, :] = np.linalg.eigvals(surrogate_corr_matrices)
         
-        fig, axes = plt.subplots(1, 1, figsize=(20, 5))
         self.null_model_eigenvalues = all_eigenvalues.flatten()
+        lambda_vals, mp_density = self.marchenko_pastur_law(c)
+        fig, axes = plt.subplots(1, 1, figsize=(20, 5))
+       
+         # Get MP law curve using the separate function
+        
         # Histogram
-        axes.hist(self.eigenvalues, density=True, bins=50, alpha=0.7, label='Stock Data')
-        axes.hist(all_eigenvalues.flatten(), bins=30, density=True, edgecolor=None, alpha=0.7, label='Null Model')
-        axes.set_title('Eigenvalue Distribution Comparison with Null Model')
+        axes.hist(self.eigenvalues, density=True, bins=60, alpha=0.7, label='Stock Data')
+        axes.hist(all_eigenvalues.flatten(), bins=50, density=True, edgecolor=None, alpha=0.7, label='Null Model')
+        # MP law plot
+        axes.plot(lambda_vals, mp_density, color='red', lw=2, label='Marchenko-Pastur Law')
+
+        axes.set_title('Eigenvalue Distribution Comparison with Null Model and MP Law')
         axes.set_xlabel('Eigenvalue')
         axes.set_ylabel('Density')
         axes.legend()
         axes.grid(True)
         plt.tight_layout()
         plt.show()
+
+    def marchenko_pastur_law(self, c: float, num_points: int = 1000) -> (np.ndarray, np.ndarray):
+        """
+        Generate the Marchenko-Pastur law curve based on the ratio c = n/t.
+
+        Parameters:
+        - c: The ratio of the number of stocks (n) to the number of time periods (t).
+        - num_points: Number of points for plotting the MP law.
+
+        Returns:
+        - lambda_vals: Eigenvalue range for the MP law.
+        - mp_density: Corresponding MP density values for the eigenvalue range.
+        """
+        lambda_min = (1 - np.sqrt(c))**2
+        lambda_max = (1 + np.sqrt(c))**2
+        lambda_vals = np.linspace(lambda_min, lambda_max, num_points)
+        mp_density = (1 / (2 * np.pi * c * lambda_vals)) * np.sqrt((lambda_max - lambda_vals) * (lambda_vals - lambda_min))
+        
+        return lambda_vals, mp_density
+
 
     
     def plot_correlation_matrix(self, corr_matrix) -> None:
@@ -392,13 +427,13 @@ class StockAnalysis:
             corr_matrix (np.ndarray): The correlation matrix to plot.
         """
         plt.figure(figsize=(10, 8))
-        plt.imshow(corr_matrix, cmap='coolwarm', interpolation='nearest')
+        plt.imshow(corr_matrix, cmap='bwr', interpolation='nearest', vmin=-1, vmax=1)
         plt.colorbar()
         plt.title('Correlation Matrix')
         plt.show()
 
 
-    def filter_correlation_matrix(self, eigen_vector_confidence_sigma: float=1.5, null_model_thres: float=1.0) -> np.ndarray:
+    def filter_correlation_matrix(self, eigen_vector_confidence_sigma: float=1.8, null_model_thres: float=1.0) -> np.ndarray:
         """
         Filter and reorder the correlation matrix based on the confidence level of the eigenvectors, the null model and identified groups.
         """
@@ -411,7 +446,7 @@ class StockAnalysis:
         # generate bi-plots for the top p eigenvectors
         print(f"Generating bi-plots for the top {p} eigenvectors")
         pcs = self.eigenvectors[:, :p]
-        self.plot_biplots(pcs)
+        self.plot_biplots(pcs, title=f'Bi-plots of the top p ({p}) eigenvectors')
 
         print("filtering eigenvectors based on confidence level")
         # filter eigenvectors based on confidence level
@@ -427,17 +462,18 @@ class StockAnalysis:
         self.analyze_eigenvectors(filtered_eigenvectors, self.eigenvalues[:p])
         # plot the bi-plots for the filtered eigenvectors
         print("Generating bi-plots for the filtered eigenvectors")
-        self.plot_biplots(filtered_eigenvectors)
+        self.plot_biplots(filtered_eigenvectors, title=f'Bi-plots of the filtered eigenvectors')
         self.fitered_eigenvectors = filtered_eigenvectors  
         
         # identify the groups based on the filtered eigenvectors
-        print("Identifying groups based on the filtered eigenvectors")
-        reordered_corr, new_order = self.identify_groups_with_set(filtered_eigenvectors, self.cov_matrix)
+        print(f"Identifying groups based on the top p {p} eigenvectors")
+        self.spectral_clustering(n_clusters=self.p)
+        # reordered_corr, new_order = self.identify_groups_with_set(filtered_eigenvectors, self.corr_matrix)
         # plot the reordered correlation matrix
         print("Plotting the reordered correlation matrix")
+        reordered_corr = self.corr_matrix[self.new_order][:, self.new_order]
         self.plot_correlation_matrix(reordered_corr)
         self.filtered_correlation_matrix = reordered_corr
-        self.new_order = new_order
 
     def reconstruct_correlation_matrix(self):
         """
@@ -451,11 +487,12 @@ class StockAnalysis:
             # reconstruct the correlation matrix sigma = sum of eigenvalues * eigenvectors * eigenvectors.T
             reconstructed_corr = pcs @ np.diag(self.eigenvalues[j:i]) @ pcs.T
             # reorder the reconstructed correlation matrix
-            reordered_corr = reconstructed_corr[self.new_order][:, self.new_order]
+            reordered_corr = reconstructed_corr[self.new_order][:,self.new_order]
             # plot the reconstructed correlation matrix
             
             print(f"Reconstructed correlation matrix with {i} eigenvalues")
             self.plot_correlation_matrix(reordered_corr)
+            # self.plot_correlation_matrix(reconstructed_corr)
 
 
 
@@ -493,7 +530,7 @@ class StockAnalysis:
         return reordered_corr, new_order
 
 
-    def plot_biplots(self, pcs: np.ndarray) -> None:
+    def plot_biplots(self, pcs: np.ndarray, title) -> None:
         """
         Plot bi-plots for the top p principal components.
         """
@@ -507,9 +544,25 @@ class StockAnalysis:
             # Turn off the unused subplots in the lower triangle
             for k in range(i + 1):
                 fig.delaxes(axes[i, k])  # Completely remove the axes
-        plt.tight_layout()
+        plt.suptitle(title, fontsize=16)
+        plt.tight_layout(rect=[0, 0, 1, 0.96])  # Reserve space for suptitle
         plt.grid()
         plt.show()
+
+
+    def cov_to_corr(self, cov_matrix):
+        std_devs = np.sqrt(np.diag(cov_matrix))
+        inv_std_devs = 1 / std_devs
+        corr_mat = cov_matrix * np.outer(inv_std_devs, inv_std_devs)
+        return corr_mat
+    
+    def corr_method(self, data=None):
+        if data is None:
+            data = self.returns_data
+        
+        cov_matrix = self.cov_method(data)
+        corr_matrix = self.cov_to_corr(cov_matrix)
+        return corr_matrix
 
 
 
@@ -529,6 +582,10 @@ class StockAnalysis:
         
         self.cov_method = self.cov_methods[cov_method]
         self.cov_matrix = self.cov_method()
+        self.corr_matrix = self.cov_to_corr(self.cov_matrix)
+        # plot the correlation matrix
+        print("Plotting the correlation matrix")
+        self.plot_correlation_matrix(self.corr_matrix)
         self.calculate_eigen_decomposition()
      
         
@@ -538,10 +595,7 @@ class StockAnalysis:
         self.compare_with_null_model()
         self.analyze_top_eigenvectors()
         self.covariance_matrix_reconstruction()
-        self.spectral_clustering()
-        self.plot_correlation_matrix(np.corrcoef(self.returns_data))
-
-
+        
         # filter the correlation matrix and reorder and plot all the results
         self.filter_correlation_matrix()
         self.reconstruct_correlation_matrix()
