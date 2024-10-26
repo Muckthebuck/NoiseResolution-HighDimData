@@ -1,0 +1,21 @@
+ ;$u^{1}$;  -0.03266683838716189
+PLDGP; Prologis, Inc.; Real Estate
+NVDA; NVIDIA Corporation; Technology
+ ;$u^{2}$;  0.9787571295529336
+GOOG; Alphabet Inc.; Communication Services
+GOOGL; Alphabet Inc.; Communication Services
+ ;$u^{3}$;  0.8668977878038269
+BRK-A; Berkshire Hathaway Inc.; Financial Services
+BRK-B; Berkshire Hathaway Inc.; Financial Services
+ ;$u^{4}$;  0.8185435740536487
+SHEL; Shell plc; Energy
+BP; BP p.l.c.; Energy
+ ;$u^{5}$;  -0.06839376813931085
+HD; The Home Depot, Inc.; Consumer Cyclical
+SO; The Southern Company; Utilities
+ ;$u^{6}$;  0.7156716968738747
+COP; ConocoPhillips; Energy
+XOM; Exxon Mobil Corporation; Energy
+ ;$u^{7}$;  0.7088305580829688
+COP; ConocoPhillips; Energy
+CVX; Chevron Corporation; Energy

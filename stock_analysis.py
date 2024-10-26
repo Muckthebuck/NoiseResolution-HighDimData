@@ -41,8 +41,9 @@ class StockAnalysis:
             metadata_file_path (str): Path to the CSV file containing stock metadata.
         """
         self.returns_data = pd.read_csv(returns_file_path, header=None)
+
         # normalise
-        self.returns_data = (self.returns_data - self.returns_data.mean()) / self.returns_data.std()
+        # self.returns_data = (self.returns_data - self.returns_data.mean()) / self.returns_data.std()
         self.metadata = pd.read_csv(metadata_file_path)
         self.cov_methods = {
             'Sample Covariance Matrix': self.scm,
@@ -467,7 +468,7 @@ class StockAnalysis:
         
         # identify the groups based on the filtered eigenvectors
         print(f"Identifying groups based on the top p {p} eigenvectors")
-        self.spectral_clustering(n_clusters=self.p)
+        self.spectral_clustering(n_clusters=p+2)
         # reordered_corr, new_order = self.identify_groups_with_set(filtered_eigenvectors, self.corr_matrix)
         # plot the reordered correlation matrix
         print("Plotting the reordered correlation matrix")
