@@ -79,6 +79,13 @@ get_top_entries(residuals_matrix)
 smallest_eigenvectors(residuals_matrix)
 ```
 
+```{r}
+positions_matrix <- temporal_corr_tracking(Data_Pre)
+plot_tracking_heatmap(positions_matrix = positions_matrix)
+positions_matrix <- temporal_corr_tracking(Data_Post)
+plot_tracking_heatmap(positions_matrix = positions_matrix)
+```
+
 # Functions section
 
 Necessary libraries
@@ -767,5 +774,105 @@ smallest_eigenvectors <- function(residuals_matrix){
   }
   
   return(top_entries)
+}
+```
+
+Function to study the first 10 entries of eigenvectors 1
+
+```{r}
+temporal_corr_tracking <- function(Dataset, window_size = 100, step_width = 20, n = 10) {
+  
+  # Number of cycles based on window size and step width
+  cycles <- floor((nrow(Dataset) - (window_size + 1)) / step_width)
+  
+  # Initialize the matrix 'positions' to keep track of each of the top n entries
+  positions <- matrix(NA, nrow = n, ncol = cycles + 1)
+  
+  # Start by computing the initial eigen decomposition to get the top n indices
+  Data_A <- Dataset[1:window_size, ]
+  eigen_A <- eigen(cor(Data_A), symmetric = TRUE)
+  first_eigenvector <- eigen_A$vectors[, 1]
+  
+  # Get the indices of the top n largest entries in absolute value
+  top_n_indices <- order(abs(first_eigenvector), decreasing = TRUE)[1:n]
+  
+  # Set the initial positions in the positions matrix
+  positions[, 1] <- 1  # Start tracking from the first eigenvector for each top entry
+  
+  # Loop through each cycle
+  for (j in 1:cycles) {
+    # Define the start and end of the sliding windows
+    start_A <- (j - 1) * step_width + 1
+    end_A <- start_A + window_size - 1
+    
+    # Compute the correlation matrix and eigen decomposition for the current window
+    Data_A <- Dataset[start_A:end_A, ]
+    eigen_A <- eigen(cor(Data_A), symmetric = TRUE)
+    
+    # Loop through each of the top n entries to track them separately
+    for (k in 1:n) {
+      # Current index to track for this entry
+      index <- top_n_indices[k]
+      
+      # Get the eigenvector specified by positions[k, j]
+      current_eigenvector <- eigen_A$vectors[, positions[k, j]]
+      
+      # Get the positions of the top 10 largest entries in absolute value
+      top_10_indices <- order(abs(current_eigenvector), decreasing = TRUE)[1:10]
+      
+      # Check if 'index' is among the top 10 indices
+      if (index %in% top_10_indices) {
+        # If 'index' is in the top 10, retain the current eigenvector position
+        positions[k, j + 1] <- positions[k, j]
+      } else {
+        # If not, search for the first eigenvector containing 'index' in its top 10
+        found <- FALSE
+        for (m in 1:ncol(eigen_A$vectors)) {
+          top_10_m <- order(abs(eigen_A$vectors[, m]), decreasing = TRUE)[1:10]
+          if (index %in% top_10_m) {
+            positions[k, j + 1] <- m
+            found <- TRUE
+            break
+          }
+        }
+        if (!found) {
+          warning(paste("No eigenvector found with index", index, "in the top 10 entries for cycle", j))
+          positions[k, j + 1] <- NA  # Mark as NA if not found
+        }
+      }
+    }
+  }
+  
+  return(positions)
+}
+```
+
+```{r}
+plot_tracking_heatmap <- function(positions_matrix) {
+  # Convert the matrix to a data frame and add identifiers
+  positions_df <- as.data.frame(positions_matrix)
+  colnames(positions_df) <- paste0("Cycle_", 1:ncol(positions_df))
+  positions_df$Entry <- paste0("Entry_", 1:nrow(positions_df))
+  
+  # Melt the data frame to long format
+  positions_long <- melt(positions_df, id.vars = "Entry", variable.name = "Cycle", value.name = "Eigenvector")
+  
+  # Convert the Cycle column to a numeric value for plotting
+  positions_long$Cycle <- as.numeric(gsub("Cycle_", "", positions_long$Cycle))
+  
+  # Plot the heatmap with a fixed color scale from 1 to 98 and red borders for values other than 1
+  ggplot(positions_long, aes(x = Cycle, y = Entry, fill = Eigenvector)) +
+    geom_tile(aes(color = ifelse(Eigenvector != 1, "red", NA)), size = 0.5) +
+    scale_fill_gradient(low = "lightblue", high = "darkblue", na.value = "grey", limits = c(1, 98)) +
+    scale_color_identity() +  # Use the specified color directly
+    labs(title = "Tracking of Top Eigenvector Entries Across Cycles",
+         x = "Cycle",
+         y = "Top Entries in First Eigenvector",
+         fill = "Eigenvector Index") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.text = element_text(size = 12),
+          axis.title = element_text(size = 14),
+          plot.title = element_text(size = 16, face = "bold"))
 }
 ```
