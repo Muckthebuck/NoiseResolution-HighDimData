@@ -1,0 +1,771 @@
+---
+title: "R code for some plots and results"
+output: html_notebook
+---
+
+# Code to obtain the plots and results
+
+Please, ensure having run the code in the Functions Section below before running the following blocks.
+
+```{r}
+corr_analysis(Data_Pre)
+corr_analysis(Data_Post)
+```
+
+```{r}
+IPR_fun_KS(Data_Pre)
+IPR_fun_KS(Data_Post)
+
+IPR_fun_JB(Data_Pre)
+IPR_fun_JB(Data_Post)
+```
+
+```{r}
+mp_plotting(Data_Pre)
+mp_plotting(Data_Post)
+```
+
+```{r}
+MP_and_null(Data_Pre)
+MP_and_null(Data_Post)
+```
+
+```{r}
+temporal_corr_indexes(Data_Pre, 100, 20)
+temporal_corr_indexes(Data_Pre, 100, 40)
+temporal_corr_indexes(Data_Pre, 100, 60)
+temporal_corr_indexes(Data_Pre, 100, 80)
+temporal_corr_indexes(Data_Pre, 100, 100)
+
+temporal_corr_indexes(Data_Post, 100, 20)
+temporal_corr_indexes(Data_Post, 100, 40)
+temporal_corr_indexes(Data_Post, 100, 60)
+temporal_corr_indexes(Data_Post, 100, 80)
+temporal_corr_indexes(Data_Post, 100, 100)
+```
+
+```{r}
+plot_grid(Data_Pre)
+plot_grid(Data_Post)
+```
+
+```{r}
+residuals_matrix <- linear_model_residuals(Data_Pre)
+
+plot(density(cor(residuals_matrix)), main = paste("Distribution of correlation matrices of Data_Post")
+     , col = "orange", xlab = "Cross-correlaion coefficient", type = "l")
+lines(density(cor(Data_Pre)), col = "green")
+legend("topright", legend = c("First eigenvector removed", "Correlation matrix"),
+       col = c("orange", "green"), lwd = 2, lty = c(1, 1))
+
+residuals_matrix <- linear_model_residuals(Data_Post)
+
+plot(density(cor(residuals_matrix)), main = paste("Distribution of correlation matrices of Data_Post")
+     , col = "orange", xlab = "Cross-correlaion coefficient", type = "l")
+lines(density(cor(Data_Pre)), col = "green")
+legend("topright", legend = c("First eigenvector removed", "Correlation matrix"),
+       col = c("orange", "green"), lwd = 2, lty = c(1, 1))
+```
+
+```{r}
+residuals_matrix <- linear_model_residuals(Data_Pre)
+get_top_entries(residuals_matrix)
+smallest_eigenvectors(residuals_matrix)
+```
+
+```{r}
+residuals_matrix <- linear_model_residuals(Data_Post)
+get_top_entries(residuals_matrix)
+smallest_eigenvectors(residuals_matrix)
+```
+
+# Functions section
+
+Necessary libraries
+
+```{r}
+# Load necessary libraries
+library(readr)
+library(stats)
+library(ggplot2)
+library(MASS)
+```
+
+The following code chunk loads the data.
+
+```{r}
+
+# Load Data and transpose
+Data_Pre <- read_csv("Datasets/Data_PreCovid_20170101_20200109.csv", col_names = FALSE)
+Data_Post <- read_csv("Datasets/Data_PostCovid_20200110_20221231.csv", col_names = FALSE)
+
+Data_Pre <- t(Data_Pre)
+Data_Post <- t(Data_Post)
+```
+
+The following code chunk is a function used by many of the subsequent functions.
+
+```{r}
+plot_heatmap <- function(corr_matrix) {
+  
+  # Convert the correlation matrix to a long-format data frame using melt
+  corr_melted <- melt(corr_matrix)
+  
+  # Number of rows in a square correlation matrix (assuming it is 45x45)
+  n <- sqrt(nrow(corr_melted))  # Assuming the matrix is square and 45x45
+  
+  # Generate indices for adjusting Var1 and Var2
+  j <- seq(from = 1, to = length(corr_melted$Var1), by = n)
+  
+  # Adjust Var1 and Var2 with appropriate indexing
+  for (i in 1:length(j)) {
+    if ((j[i] + (n - 1)) <= length(corr_melted$Var1)) {
+      corr_melted$Var1[j[i]:(j[i] + (n - 1))] <- seq(1, n)
+      corr_melted$Var2[j[i]:(j[i] + (n - 1))] <- rep(i, times = n)
+    }
+  }
+  
+  # Create the heatmap using ggplot2 with reversed y-axis
+  ggplot(data = corr_melted, aes(x = Var1, y = Var2, fill = value)) +
+    geom_tile() +
+    scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                         midpoint = 0, limit = c(-1, 1), space = "Lab", 
+                         name = "Correlation", na.value = "green") +  # Ensure NA values are white
+    scale_y_reverse() +  # Reverse the y-axis
+    theme_minimal() +
+    labs(title = "Heatmap of Correlation Matrix",
+         x = "Variables",
+         y = "Variables") +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1, size = 14),  # Increased font size
+          axis.text.y = element_text(size = 14),  # Increased font size
+          axis.title.x = element_text(size = 16),  # Font size for x-axis label
+          axis.title.y = element_text(size = 16))  # Font size for y-axis label
+}
+```
+
+Function to obtain the heatmap of the correlation matrix of a dataset.
+
+```{r}
+corr_analysis <- function(Dataset){
+  corr_matrix <- cor(Dataset)
+  print(plot_heatmap(corr_matrix = corr_matrix))
+}
+```
+
+Two functions to check gaussianity via the Kolmogorov-Smirnov test and the Jarque-Baret hypothesis test. Load it as it is used by other functions.
+
+```{r}
+# Function to check for gaussianity in the eigenvectors
+# Function to apply the Kolmogorov-Smirnov test and return non-Gaussian eigenvectors and their positions
+check_gaussianity <- function(Dataset, alpha = 0.05) {
+  non_gaussian <- list()  # To store non-Gaussian eigenvectors
+  indices <- vector()     # To store corresponding indices
+  
+  corr_matrix <- scaled(Dataset = Dataset)
+  
+  eigenvectors <- eigen(corr_matrix, symmetric = T)$vectors
+  
+  for (i in 1:ncol(eigenvectors)) {
+    eigenvector <- eigenvectors[, i]
+    
+    # Perform the KS test comparing the eigenvector to a normal distribution
+    ks_test <- ks.test(eigenvector, "pnorm", mean = mean(eigenvector), sd = sd(eigenvector))
+    
+    # If the p-value is less than alpha, the eigenvector is considered non-Gaussian
+    if (ks_test$p.value < alpha) {
+      non_gaussian[[length(non_gaussian) + 1]] <- eigenvector
+      indices <- c(indices, i)  # Save index
+    }
+  }
+  return(list(non_gaussian_vectors = non_gaussian, positions = indices))
+}
+
+JB_gaussianity <- function(Dataset, alpha = 0.01) {
+  non_gaussian <- list()  # To store non-Gaussian eigenvectors
+  indices <- vector()     # To store corresponding indices
+  
+  # Compute the correlation matrix
+  corr_matrix <- cor(Dataset)
+  
+  # Perform eigen decomposition
+  eigenvectors <- eigen(corr_matrix, symmetric = TRUE)$vectors
+  
+  # Iterate over each eigenvector
+  for (i in 1:ncol(eigenvectors)) {
+    eigenvector <- eigenvectors[, i]
+    
+    # Perform the Jarque-Bera test
+    jb_test <- jarque.bera.test(eigenvector)
+    
+    # If the p-value is less than alpha, the eigenvector is considered non-Gaussian
+    if (jb_test$p.value < alpha) {
+      non_gaussian[[length(non_gaussian) + 1]] <- eigenvector
+      indices <- c(indices, i)  # Save index
+    }
+  }
+  
+  # Return the list of non-Gaussian eigenvectors and their indices
+  return(list(non_gaussian_vectors = non_gaussian, positions = indices))
+}
+```
+
+Two functions to obtain two null models: a GOE and a shuffled data. Load it as it is used by other functions.
+
+```{r}
+generate_GOE <- function(m, n) {
+  # Create a matrix with normally distributed random numbers
+  GOE_matrix <- matrix(rnorm(n * m), nrow = m, ncol = n)
+  
+  return(GOE_matrix)
+}
+
+randomize_null <- function(Dataset) {
+  
+  n_rows <- nrow(Dataset)
+  n_cols <- ncol(Dataset)
+  
+  # Flatten the Dataset into a vector
+  Dataset_vector <- as.vector(Dataset)
+  
+  # Randomize the positions
+  order <- sample(1:length(Dataset_vector), size = length(Dataset_vector), replace = FALSE)
+  
+  # Create a new randomized matrix with the same dimensions
+  Dataset_randomized <- matrix(Dataset_vector[order], nrow = n_rows, ncol = n_cols)
+  
+  return(Dataset_randomized)
+}
+```
+
+Function to calculate the IPR along with the Kolmogorov-Smirnov test
+
+```{r}
+IPR_fun_KS <- function(Dataset) {
+  
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  # Calculate the range for the Marchenko-Pastur distribution
+  lambda_min <- (1 - sqrt(Q))^2
+  lambda_max <- (1 + sqrt(Q))^2
+  
+  # Fit the Marchenko-Pastur distribution to get the fitted bounds
+  corr_matrix <- cor(Dataset)
+  eigenvalues <- eigen(corr_matrix, symmetric = TRUE)$values
+  
+
+  if (Dataset == Data_Pre){
+  lambda_plus_fitted <- 1.029  
+  lambda_minus_fitted <- 0.1138 
+  } else{
+  lambda_plus_fitted <- 0.872  
+  lambda_minus_fitted <- 0.083 
+  }
+  
+  vectors <- eigen(corr_matrix)$vectors
+  values <- eigenvalues
+  
+  IPRs <- vector(mode = "numeric", length = 98)
+  
+  for(i in 1:nrow(corr_matrix)){
+    IPRs[i] <- sum(vectors[,i]^4)
+  }
+  
+  non_gaussian <- check_gaussianity(Dataset)
+  
+  # Highlight and plot non-Gaussian eigenvalues
+  non_gaussian_positions <- non_gaussian[["positions"]]
+  
+  data_plot <- data.frame(eigenvalues = values, IPR = IPRs, gaussian_positions = rep("blue", times = 98))
+  data_plot$gaussian_positions[non_gaussian_positions] <- "green" 
+  
+  # Plot the IPR against eigenvalues
+  plot(x = log10(data_plot$eigenvalues), y = log10(data_plot$IPR), type = "b",
+       xlab = "log(Eigenvalues)", ylab = "log(Inverse Participation Ratio)", col = data_plot$gaussian_positions,
+       main = paste("Plot of IPR against eigenvalues of ", deparse(substitute(Dataset)), "using Kolmogorov-Smirnov test"), 
+       xlim = c(-2, 1.5), ylim = c(-2, -0.2), cex.axis = 1.5, cex.lab = 1.5)
+  
+  # Highlight the Marchenko-Pastur distribution range (Gray Rectangle)
+  rect(log10(lambda_min), -2, log10(lambda_max), 0, col = rgb(0.5, 0.5, 0.5, 1/4))
+  abline(v = log10(lambda_min), col = "red")
+  abline(v = log10(lambda_max), col = "red")
+  
+  # Add vertical pink lines for the fitted values (Fitted MP-Law)
+  rect(log10(lambda_minus_fitted), -2, log10(lambda_plus_fitted), 0, col = alpha("pink", 0.5))
+  abline(v = log10(lambda_plus_fitted), col = "pink", lty = 2, lwd = 2)  # Upper fitted bound
+  abline(v = log10(lambda_minus_fitted), col = "pink", lty = 2, lwd = 2)  # Lower fitted bound
+  
+  # Draw the black lines connecting the points
+  lines(log10(data_plot$eigenvalues), log10(data_plot$IPR), col = "black", lty = 1)
+  
+  # Add a legend with information about the bounds
+  legend("topright", 
+         legend = c("Associated to Non-Gaussian eigenvectors", 
+                    "Associated to Gaussian eigenvectors", 
+                    "MP-Law bounds", 
+                    "Fitted MP-Law bounds"), 
+         col = c("green", "blue", rgb(0.5, 0.5, 0.5, 1/4), alpha("pink", 0.5)), 
+         pch = c(16, 16, 15, 15),  # Use filled squares for rectangles
+         pt.cex = 2,
+         lty = c(NA, NA, NA, 2),  # Line type for pink bounds
+         lwd = c(NA, NA, NA, 2))  # Line width for pink bounds
+}
+```
+
+Function to calculate the IPR along with the Jarque-Baret hypothesis test
+
+```{r}
+IPR_fun_JB <- function(Dataset){
+  
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  # Calculate the range for the Marchenko-Pastur distribution
+  lambda_min <- (1 - sqrt(Q))^2
+  lambda_max <- (1 + sqrt(Q))^2
+  
+  if (Dataset == Data_Pre){
+  lambda_plus_fitted <- 1.029  
+  lambda_minus_fitted <- 0.1138 
+  } else{
+  lambda_plus_fitted <- 0.872  
+  lambda_minus_fitted <- 0.083 
+  }
+  
+  # Compute the correlation matrix
+  corr_matrix <- cor(Dataset)
+  
+  # Perform eigen decomposition
+  eigen_decomp <- eigen(corr_matrix)
+  vectors <- eigen_decomp$vectors
+  values <- eigen_decomp$values
+  
+  # Calculate IPR for each eigenvector
+  IPRs <- vector(mode = "numeric", length = N)
+  for(i in 1:N){
+    IPRs[i] <- sum(vectors[, i]^4)
+  }
+  
+  # Check Gaussianity using the Jarque-Bera test (updated function)
+  non_gaussian <- JB_gaussianity(Dataset = Dataset)
+  
+  # Extract non-Gaussian eigenvector positions
+  non_gaussian_positions <- non_gaussian[["positions"]]
+  
+  # Create a data frame for plotting
+  data_plot <- data.frame(eigenvalues = values, IPR = IPRs, gaussian_positions = rep("blue", times = N))
+  
+  # Mark non-Gaussian eigenvectors in green
+  data_plot$gaussian_positions[non_gaussian_positions] <- "green" 
+  print(data_plot)
+  # Plot IPR against eigenvalues with log scale
+  plot(x = log10(data_plot$eigenvalues), y = log10(data_plot$IPR), type = "b",
+       xlab = "log(Eigenvalues)", ylab = "log(Inverse Participation Ratio)", col = data_plot$gaussian_positions,
+       main = paste("Plot of IPR against eigenvalues of", deparse(substitute(Dataset)), "using Jarque-Bera test"), 
+       xlim = c(-2, 1.5), ylim = c(-2, -0.2), cex.lab = 1.5, cex.axis = 1.5)
+  
+  # Add vertical pink lines for the fitted values
+  rect(log10(lambda_plus_fitted), -2, log10(lambda_minus_fitted), 0, col = alpha("pink",0.5), )
+  abline(v = log10(lambda_plus_fitted), col = "pink", lty = 2, lwd = 2)  # Upper fitted bound
+  abline(v = log10(lambda_minus_fitted), col = "pink", lty = 2, lwd = 2)  # Lower fitted bound
+  
+  # Draw the black lines connecting the points
+  lines(log10(data_plot$eigenvalues), log10(data_plot$IPR), col = "black", lty = 1)
+  
+  # Highlight the Marchenko-Pastur distribution range
+  rect(log10(lambda_min), -2, log10(lambda_max), 0, col = rgb(0.5, 0.5, 0.5, 1/4))
+  abline(v = log10(lambda_min), col = "red")
+  abline(v = log10(lambda_max), col = "red")
+  
+  # Add a legend with information about the bounds
+  legend("topright", 
+         legend = c("Associated to Non-Gaussian eigenvectors", 
+                    "Associated to Gaussian eigenvectors", 
+                    "MP-Law bounds", 
+                    "Fitted MP-Law bounds"), 
+         col = c("green", "blue", rgb(0.5, 0.5, 0.5, 1/4), alpha("pink", 0.5)), 
+         pch = c(16, 16, 15, 15),  # Use filled squares for rectangles
+         pt.cex = 2,
+         lty = c(NA, NA, NA, 2),  # Line type for pink bounds
+         lwd = c(NA, NA, NA, 2))  # Line width for pink bounds
+}
+```
+
+Function to calculate the MP-Law on a dataset
+
+```{r}
+mp_density <- function(lambda, Q) {
+  # Calculate the range for the Marchenko-Pastur distribution
+  lambda_min <- (1 - sqrt(Q))^2
+  lambda_max <- (1 + sqrt(Q))^2
+  sqrt_part <- sqrt((lambda_max - lambda) * (lambda - lambda_min))
+  return((1 / (2 * pi * Q * lambda)) * (sqrt_part))
+}
+```
+
+This function produces the histogram of the eigenvalues with the MP-law and GOE histogram of eigenvalues overplotted
+
+```{r}
+mp_plotting <- function(Dataset){
+  
+  # Scale and compute the correlation matrix
+  corr_matrix <- cor(Dataset)
+  
+  # Get eigenvalues from the correlation matrix
+  eigenval <- eigen(corr_matrix, symmetric = TRUE)$values
+  
+  # Plot histogram of eigenvalues from the dataset
+  hist(eigenval, breaks = 200, probability = TRUE, 
+       main = paste("Histogram of Eigenvalues with MP Law", deparse(substitute(Dataset))),
+       xlab = "Eigenvalues", col = "lightblue", ylim = c(0, 1.5), xlim = c(0,10), cex.axis = 1.5)
+  
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  # Calculate the range for the Marchenko-Pastur distribution
+  lambda_min <- (1 - sqrt(Q))^2
+  lambda_max <- (1 + sqrt(Q))^2
+  
+  # Sequence for lambda and MP distribution values
+  lambda_seq <- seq(lambda_min, lambda_max, length.out = 1000)
+  mp_values <- sapply(lambda_seq, mp_density, Q = Q)
+  
+  # Add MP Law curve to the plot
+  lines(lambda_seq, mp_values, col = "red", lwd = 2, lty = 2)
+  
+  # Generate a GOE matrix of size N x N (same size as correlation matrix)
+  #GOE_matrix <- generate_GOE(m = M, n = N) 
+  
+  #GOE_corr <- cor(GOE_matrix)
+  
+  #GOE_eigen <- eigen(GOE_corr)$values
+  
+  # Flatten the GOE matrix to a vector to get all entries
+  #GOE_entries <- as.vector(GOE_eigen)
+  
+  # Add density curve for the GOE matrix
+  #lines(density(GOE_entries), col = "green", lwd = 2)
+  
+  # Add legend
+  legend("topright", legend = c("Eigenvalues", "MP-Law"),
+         col = c("lightblue", "red"), lwd = 2, lty = c(1, 2, 1))
+}
+```
+
+Function to compute the MP against the shuffled data
+
+```{r}
+MP_and_null <- function(Dataset){
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  GOE_matrix <- generate_GOE(m = M, n = N) 
+  
+  GOE_corr <- cor(GOE_matrix)
+  
+  GOE_eigen <- eigen(GOE_corr)$values
+  
+  # Flatten the GOE matrix to a vector to get all entries
+  GOE_entries <- as.vector(GOE_eigen)
+  
+  control <- randomize_null(Dataset)
+  
+  control <- eigen(cor(control))$values
+  
+  
+  # Calculate the range for the Marchenko-Pastur distribution
+  lambda_min <- (1 - sqrt(Q))^2
+  lambda_max <- (1 + sqrt(Q))^2
+  
+  # Sequence for lambda and MP distribution values
+  lambda_seq <- seq(lambda_min, lambda_max, length.out = 1000)
+  mp_values <- sapply(lambda_seq, mp_density, Q = Q)
+  
+  plot(y = density(GOE_entries)$y, x = density(GOE_entries)$x, type = "l", ylim = c(0, 1.2), main = paste("Comparison of histograms of",deparse(substitute(Dataset)))
+       , ylab = "density", xlab = "Eigenvalues", cex.lab = 1.7, cex.axis = 1.7)
+  
+  # Add density curve for the GOE matrix
+  lines(lambda_seq, mp_values, col = "red", lwd = 2, lty = 2)
+  lines(density(control), col = "orange", lwd = 2)
+  
+  #Add legend
+  legend("topright", legend = c("Control shuffle", "MP-Law", "GOE Entries"),
+         col = c("orange", "red", "black"), lwd = 2, lty = c(1, 2, 1))
+  
+}
+```
+
+Function to track change in the top 10 entries.
+
+```{r}
+# Tracking changes in top 10 entries
+temporal_corr_indexes <- function(Dataset, window_size, step_width) {
+  
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  # Maximum and minimum eigenvalues based on MP-Law
+  lambda_max <- (1 + sqrt(Q))^2
+  
+  # Eigenvalue decomposition of the correlation matrix of the dataset
+  eigenvalues <- eigen(cor(Dataset))$values
+  
+  # Find positions of eigenvalues outside the [lambda_min, lambda_max] range
+  positions <- which(eigenvalues > lambda_max)
+  num_positions <- length(positions)
+  
+  # Calculate the number of cycles
+  cycles <- floor((nrow(Dataset) - (window_size + 1)) / step_width)
+  
+  # Initialize a vector to track changes for each eigenvector
+  change_counts <- matrix(NA, nrow = cycles, ncol = num_positions)
+  
+  for (i in 1:cycles) {
+    # Adjust the sliding window calculation
+    start_A <- i
+    end_A <- start_A + window_size
+    start_B <- start_A + step_width
+    end_B <- start_B + window_size
+    
+    if (end_B > nrow(Dataset)) break
+    
+    Data_A <- Dataset[start_A:end_A, ]
+    Data_B <- Dataset[start_B:end_B, ]
+    
+    # Compute correlation matrices
+    Data_A <- cor(Data_A)
+    Data_B <- cor(Data_B)
+    
+    # Eigen decomposition
+    eigen_A <- eigen(Data_A, symmetric = TRUE)
+    eigen_B <- eigen(Data_B, symmetric = TRUE)
+    
+    # Select only the eigenvectors based on the 'positions'
+    vectors_A <- eigen_A$vectors[, positions, drop = FALSE]  # Ensure matrix format
+    vectors_B <- eigen_B$vectors[, positions, drop = FALSE]  # Ensure matrix format
+    
+    # Track changes in the top 10 entries for each eigenvector
+    for(n in 1:num_positions){
+      # Get the positions of the top 10 entries in absolute value
+      top_10_A <- order(abs(vectors_A[, n]), decreasing = TRUE)[1:10]
+      top_10_B <- order(abs(vectors_B[, n]), decreasing = TRUE)[1:10]
+      # Count how many positions are different between vectors_A and vectors_B
+      change_counts[i,n] <- sum(!top_10_A %in% top_10_B)
+    }
+  }
+  change_counts <- change_counts/10
+  # Convert matrix to data frame for labeling purposes
+  change_counts_df <- as.data.frame(change_counts)
+  
+  # Create a boxplot for each column
+  boxplot(change_counts_df,
+          xlab = "Eigenvectors",
+          ylab = "change",
+          col = "lightblue",
+          border = "darkblue",
+          notch = F,
+          ylim = c(0,1),
+          cex.axis = 1.5,
+          cex.lab = 1.5)
+}
+```
+
+This function provides the heatmap of the eigenvectors to the right of the bulk
+
+```{r}
+#Heatmaps with cropping
+temporal_corr_cropped <- function(Dataset, window_size, step_width) {
+  
+  # Number of variables (N) and observations (M) for MP-Law parameters
+  N <- ncol(Dataset)  # Number of variables
+  M <- nrow(Dataset)  # Number of observations
+  Q <- N / M          # Shape parameter (N / M)
+  
+  # Maximum and minimum eigenvalues based on MP-Law
+  lambda_max <- (1 + sqrt(Q))^2
+  #lambda_min <- (1 - sqrt(Q))^2
+  
+  # Eigenvalue decomposition of the correlation matrix of the dataset
+  eigenvalues <- eigen(cor(Dataset))$values
+  
+  # Find positions of eigenvalues outside the [lambda_min, lambda_max] range
+  positions <- which(eigenvalues > lambda_max)
+  num_positions <- length(positions)
+  
+  # Initialize the temporal average matrix with the correct dimensions
+  temporal_average <- matrix(0, nrow = num_positions, ncol = num_positions)
+  
+  # Set row and column names based on positions
+  rownames(temporal_average) <- positions
+  colnames(temporal_average) <- positions
+  
+  # Calculate the number of cycles
+  cycles <- floor((nrow(Dataset) - (window_size + 1)) / step_width)
+  
+  for (i in 1:cycles) {
+    # Adjust the sliding window calculation
+    start_A <- i
+    end_A <- start_A + window_size
+    start_B <- start_A + step_width
+    end_B <- start_B + window_size
+    
+    if (end_B > nrow(Dataset)) break
+    
+    Data_A <- Dataset[start_A:end_A, ]
+    Data_B <- Dataset[start_B:end_B, ]
+    
+    # Compute correlation matrices
+    Data_A <- cor(Data_A)
+    Data_B <- cor(Data_B)
+    
+    # Eigen decomposition
+    eigen_A <- eigen(Data_A, symmetric = TRUE)
+    eigen_B <- eigen(Data_B, symmetric = TRUE)
+    
+    # Select only the eigenvectors based on the 'positions'
+    vectors_A <- eigen_A$vectors[, positions, drop = FALSE]  # Ensure matrix format
+    vectors_B <- eigen_B$vectors[, positions, drop = FALSE]  # Ensure matrix format
+    
+    # Calculate temporal correlation matrix
+    temporal <- t(vectors_A) %*% vectors_B
+    
+    # Accumulate the temporal correlation values
+    temporal_average <- temporal_average + temporal
+  }
+  
+  # Average the temporal correlations across all cycles
+  temporal_average <- temporal_average / i
+  
+  # Final heatmap with correct labels
+  plot_heatmap(temporal_average)
+}
+
+# Assuming 'temporal_corr_cropped' returns a ggplot object
+plot_grid <- function(Dataset) {
+  
+  # Initialize an empty list to store the plots
+  plot_list <- list()
+  
+  # Loop through different step_width values (20, 40, 60, 80, 100)
+  for (i in 1:5) {
+    step_width <- i * 20
+    # Call the function and store the result in the list
+    plot_list[[i]] <- temporal_corr_cropped(Dataset, window_size = 100, step_width = step_width)
+  }
+  
+  # Arrange the 5 plots in a grid
+  grid.arrange(grobs = plot_list, ncol = 2)
+}
+```
+
+Function to compute the linear model
+
+```{r}
+linear_model_residuals <- function(Dataset) {
+  
+  N <- nrow(Dataset)
+  M <- ncol(Dataset)
+  scaled_data <- scale(Dataset)
+  corr_matrix <- cor(Dataset)
+  
+  first_eigenvector <- eigen(corr_matrix)$vectors[, 1]
+  
+  G_t <- vector(mode = "numeric", length = N)
+  M_t <- vector(mode = "numeric", length = N)
+  
+  # Initialize a matrix to store residuals 
+  residuals_matrix <- matrix(nrow = N, ncol = M)
+  
+  for (j in 1:M) {
+    for (i in 1:N) {
+      M_t[i] <- t(first_eigenvector) %*% scaled_data[i, ]
+      G_t[i] <- scaled_data[i, j]
+    }
+    
+    # Fit the linear model and store residuals in the corresponding column
+    residuals_matrix[, j] <- lm(G_t ~ M_t)$residuals
+  }
+  
+  return(residuals_matrix)
+}
+```
+
+```{r}
+residuals_matrix <- linear_model_residuals(Data_Post)
+
+plot(density(cor(residuals_matrix)), main = paste("Distribution of correlation matrices of Data_Post")
+     , col = "orange", xlab = "Cross-correlaion coefficient", type = "l")
+lines(density(cor(Data_Pre)), col = "green")
+legend("topright", legend = c("First eigenvector removed", "Correlation matrix"),
+       col = c("orange", "green"), lwd = 2, lty = c(1, 1))
+```
+
+Function to get the first 10 top entries from the eigenvectors to the right of the bulk
+
+```{r}
+get_top_entries <- function(residuals_matrix) {
+  # Compute the correlation matrix of the residuals
+  corr_residuals <- cor(residuals_matrix)
+  
+  # Perform eigen decomposition and extract the first 10 eigenvectors
+  eigenvectors <- eigen(corr_residuals)$vectors[, 1:10]
+  
+  # Initialize a list to store the top 10 entries for each eigenvector
+  top_entries <- list()
+  
+  # Loop over the first 10 eigenvectors
+  for (i in 1:10) {
+    # Get the absolute values of the eigenvector entries
+    abs_entries <- abs(eigenvectors[, i])
+    
+    # Find the indices of the top 10 largest absolute values
+    top_indices <- order(abs_entries, decreasing = TRUE)[1:10]
+    
+    # Store the indices and corresponding values in the list
+    top_entries[[i]] <- list(indices = top_indices, values = eigenvectors[top_indices, i])
+  }
+  
+  return(top_entries)
+}
+```
+
+Function to get the first 2 top entries from the first 5 eigenvectors to the left of the bulk
+
+```{r}
+smallest_eigenvectors <- function(residuals_matrix){
+  
+  # Compute the correlation matrix of the residuals
+  corr_residuals <- cor(residuals_matrix)
+  
+  # Perform eigen decomposition and extract the first 10 eigenvectors
+  eigenvectors <- eigen(corr_residuals)$vectors
+  eigenvectors <- eigenvectors[, tail(1:ncol(eigenvectors), 5)]
+  
+  # Initialize a list to store the top 10 entries for each eigenvector
+  top_entries <- list()
+  
+  # Loop over the first 10 eigenvectors
+  for (i in 1:ncol(eigenvectors)) {
+    # Get the absolute values of the eigenvector entries
+    abs_entries <- abs(eigenvectors[, i])
+    
+    # Find the indices of the top 2 largest absolute values
+    top_indices <- order(abs_entries, decreasing = TRUE)[1:2]
+    
+    # Store the indices and corresponding values in the list
+    top_entries[[i]] <- list(indices = top_indices, values = eigenvectors[top_indices, i])
+  }
+  
+  return(top_entries)
+}
+```
