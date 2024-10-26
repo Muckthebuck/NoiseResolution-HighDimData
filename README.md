@@ -15,7 +15,12 @@ The project will produce a comprehensive report and code that documents the meth
 - Documentation of numerical experiments and their results.
 - Insights into noise resolution and correlation structures in complex datasets.
 
-## Setup Instructions
+## Setup Instructions for Luca's code
+
+The code is stored in the file "Formatted code.Rmd". It is a R-Notebook. The code is divided into two sections: Plots/Results and Functions. The first section, Plots/Results, shall be run after the second section "Functions". The order is chosen such that the IDE remains uncluttered.
+
+
+## Setup Instructions for Mukul's code
 
 To set up the environment and install the required packages for this project, follow these steps:
 
