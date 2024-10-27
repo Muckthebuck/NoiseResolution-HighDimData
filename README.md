@@ -15,53 +15,26 @@ The project will produce a comprehensive report and code that documents the meth
 - Documentation of numerical experiments and their results.
 - Insights into noise resolution and correlation structures in complex datasets.
 
+The full report is available here `Final report_GoupA.pdf`
+
 ## Setup Instructions for Luca's code
 
 The code is stored in the file "Formatted code.Rmd". It is a R-Notebook. The code is divided into two sections: Plots/Results and Functions. The first section, Plots/Results, shall be run after the second section "Functions". The order is chosen such that the IDE remains uncluttered.
 
 
 ## Setup Instructions for Mukul's code
+### VS Code setup
+1. Open then `data_analysis_pipeline.ipynb`.
+2. Select Kernel here ![image](https://github.com/user-attachments/assets/694836d8-efdb-4348-9efd-fc276ed1bd4a)
+3. Select Python Environments
+4. Create Python Environment
+5. Venv -> `Python 3.12.7`
+6. Follow the prompts on the screen, it will ask you to select the requirements file, select `requirements.txt` and install all the packages required. 
 
-To set up the environment and install the required packages for this project, follow these steps:
-
-### Set Up Virtual Environment
-
-1. Clone the repository or navigate to the project directory.
-   
-2. Run the `setup_environment.sh` script to set up the virtual environment and install the necessary packages:
-
-    ```bash
-    ./setup_environment.sh
-    ```
-
-This script will:
-
-- Check if Python 3.11 is installed.
-- Create a virtual environment named `.venv` in the project directory.
-- Activate the virtual environment.
-- Upgrade `pip` to the latest version.
-- Install the required packages from the `requirements.txt` file.
-
-
-### Activating and Decativating the Virtual Environment
-
-If the virtual environment is not already activated or you need to activate it again, you can activate it by running:
-
-```bash
-source .venv/bin/activate
-```
-
-To deactivate the virtual environment, simply run:
-
-
-```bash
-deactivate
-```
-
-## Requirements
+### Requirements file
 
 The following Python packages are required for this project:
-
+- `Python 3.12.7`
 - `pandas`
 - `numpy`
 - `matplotlib`
@@ -71,7 +44,7 @@ The following Python packages are required for this project:
 - `notebook`
  - `ipykernel`
 
-These packages will be installed automatically by the `setup_environment.sh` script. If you need to manually install additional packages, you can do so using:
+If you need to manually install additional packages, you can do so using:
 ```bash
 pip install <package-name>
 ```
